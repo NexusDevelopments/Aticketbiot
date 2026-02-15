@@ -12,6 +12,12 @@ enum Role {
   ADMIN
 }
 
+enum PanelComponentType {
+  BUTTON
+  DROPDOWN
+  TICKET
+}
+
 model User {
   id        String   @id
   role      Role
@@ -57,6 +63,12 @@ model TicketPanel {
   name        String
   channelId   String
   messageId   String?
+  title       String?
+  description String?
+  color       String?
+  componentType PanelComponentType @default(BUTTON)
+  buttonLabels Json?
+  dropdownOptions Json?
   createdAt   DateTime @default(now())
 }
 

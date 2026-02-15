@@ -20,14 +20,6 @@ router.post("/login", async (req, res) => {
 
   const { userId, password } = parsed.data;
 
-  const attempt = await prisma.loginAttempt.findUnique({
-    where: { userId }
-  });
-
-  if (attempt?.lockedUntil && attempt.lockedUntil > new Date()) {
-    return res.status(429).json({ error: "Locked for 10 minutes" });
-  }
-
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
     return res.status(403).json({ error: "Access denied" });
@@ -39,34 +31,8 @@ router.post("/login", async (req, res) => {
 
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) {
-    const updated = await prisma.loginAttempt.upsert({
-      where: { userId },
-      update: {
-        failCount: (attempt?.failCount || 0) + 1,
-        lockedUntil:
-          (attempt?.failCount || 0) + 1 >= 3
-            ? new Date(Date.now() + 10 * 60 * 1000)
-            : null
-      },
-      create: {
-        userId,
-        failCount: 1
-      }
-    });
-
-    return res.status(401).json({
-      error:
-        updated.lockedUntil && updated.lockedUntil > new Date()
-          ? "Locked for 10 minutes"
-          : "Invalid password"
-    });
+    return res.status(401).json({ error: "Invalid password" });
   }
-
-  await prisma.loginAttempt.upsert({
-    where: { userId },
-    update: { failCount: 0, lockedUntil: null },
-    create: { userId, failCount: 0 }
-  });
 
   const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, {
     expiresIn: "12h"

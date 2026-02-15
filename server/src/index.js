@@ -13,6 +13,7 @@ import blacklistRoutes from "./routes/blacklist.js";
 import panelsRoutes from "./routes/panels.js";
 import ticketsRoutes from "./routes/tickets.js";
 import botRoutes from "./routes/bot.js";
+import profileRoutes from "./routes/profile.js";
 import { authRequired, requireRole } from "./middleware/auth.js";
 
 const app = express();
@@ -31,6 +32,7 @@ app.use("/api/blacklist", authRequired, blacklistRoutes);
 app.use("/api/panels", authRequired, panelsRoutes);
 app.use("/api/tickets", authRequired, ticketsRoutes);
 app.use("/api/bot", authRequired, botRoutes);
+app.use("/api/profile", authRequired, profileRoutes);
 app.use("/api/users", authRequired, requireRole(["OWNER"]), usersRoutes);
 
 const __filename = fileURLToPath(import.meta.url);

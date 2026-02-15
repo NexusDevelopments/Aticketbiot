@@ -39,8 +39,7 @@ Ticket bot + admin website with blue theme, owner/admin roles, blacklist alerts,
 		- DISCORD_BOT_TOKEN (optional)
 		- DISCORD_CLIENT_ID (optional)
 	3) Deploy. The build uses [railway.json](railway.json) and serves the React build from the API.
-	4) Run database migrations in Railway:
-		- `npm --workspace server run prisma:migrate`
+	4) Migrations run automatically on each deploy (`prisma migrate deploy`).
 
 ## Notes
 - Default owner ID: `1435310225010987088`

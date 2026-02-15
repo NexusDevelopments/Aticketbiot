@@ -29,7 +29,8 @@ function useAuth() {
   return { user, login, logout };
 }
 
-function Layout({ user, onLogout, inviteUrl, loading, children }) {
+function Layout({ user, onLogout, inviteUrl, loading, profile, children }) {
+  const navigate = useNavigate();
   return (
     <div className="app">
       <div className="background-anim" />
@@ -73,6 +74,20 @@ function Layout({ user, onLogout, inviteUrl, loading, children }) {
         </nav>
         <button className="ghost" onClick={onLogout}>
           Logout
+        </button>
+        <button className="profile-card" onClick={() => navigate("/profile")}>
+          <img
+            className="profile-avatar"
+            src={profile?.discord?.avatarUrl || IMAGE_URL}
+            alt="Profile"
+          />
+          <div>
+            <strong>
+              {profile?.discord?.displayName || profile?.discord?.username ||
+                profile?.id || user?.userId}
+            </strong>
+            <span className="muted">{profile?.role || user?.role}</span>
+          </div>
         </button>
       </aside>
       <main className="content">{children}</main>
@@ -199,7 +214,16 @@ function Blacklist({ user }) {
 
 function Panels() {
   const [panels, setPanels] = useState([]);
-  const [form, setForm] = useState({ name: "", channelId: "" });
+  const [form, setForm] = useState({
+    name: "",
+    channelId: "",
+    title: "",
+    description: "",
+    color: "#2f6bff",
+    componentType: "BUTTON",
+    buttonLabels: "",
+    dropdownOptions: ""
+  });
 
   const load = async () => {
     const res = await api.get("/panels");
@@ -212,8 +236,40 @@ function Panels() {
 
   const add = async (e) => {
     e.preventDefault();
-    await api.post("/panels", form);
-    setForm({ name: "", channelId: "" });
+    const buttonLabels = form.buttonLabels
+      .split(",")
+      .map((label) => label.trim())
+      .filter(Boolean);
+    const dropdownOptions = form.dropdownOptions
+      .split(",")
+      .map((label) => label.trim())
+      .filter(Boolean);
+
+    await api.post("/panels", {
+      name: form.name,
+      channelId: form.channelId,
+      title: form.title || null,
+      description: form.description || null,
+      color: form.color || null,
+      componentType: form.componentType,
+      buttonLabels: buttonLabels.length ? buttonLabels : undefined,
+      dropdownOptions: dropdownOptions.length ? dropdownOptions : undefined
+    });
+    setForm({
+      name: "",
+      channelId: "",
+      title: "",
+      description: "",
+      color: "#2f6bff",
+      componentType: "BUTTON",
+      buttonLabels: "",
+      dropdownOptions: ""
+    });
+    await load();
+  };
+
+  const sendToChannel = async (panelId) => {
+    await api.post(`/panels/${panelId}/send`);
     await load();
   };
 
@@ -231,13 +287,62 @@ function Panels() {
           value={form.channelId}
           onChange={(e) => setForm({ ...form, channelId: e.target.value })}
         />
+        <input
+          placeholder="Embed title"
+          value={form.title}
+          onChange={(e) => setForm({ ...form, title: e.target.value })}
+        />
+        <input
+          placeholder="Embed description"
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+        />
+        <input
+          type="color"
+          value={form.color}
+          onChange={(e) => setForm({ ...form, color: e.target.value })}
+        />
+        <select
+          value={form.componentType}
+          onChange={(e) =>
+            setForm({ ...form, componentType: e.target.value })
+          }
+        >
+          <option value="BUTTON">Buttons</option>
+          <option value="DROPDOWN">Dropdown</option>
+          <option value="TICKET">Ticket Button</option>
+        </select>
+        {form.componentType === "BUTTON" && (
+          <input
+            placeholder="Button labels (comma separated)"
+            value={form.buttonLabels}
+            onChange={(e) =>
+              setForm({ ...form, buttonLabels: e.target.value })
+            }
+          />
+        )}
+        {form.componentType === "DROPDOWN" && (
+          <input
+            placeholder="Dropdown options (comma separated)"
+            value={form.dropdownOptions}
+            onChange={(e) =>
+              setForm({ ...form, dropdownOptions: e.target.value })
+            }
+          />
+        )}
         <button type="submit">Create</button>
       </form>
       <div className="list">
         {panels.map((panel) => (
-          <div className="list-item" key={panel.id}>
-            <strong>{panel.name}</strong>
-            <span>{panel.channelId}</span>
+          <div className="list-item panel-row" key={panel.id}>
+            <div>
+              <strong>{panel.name}</strong>
+              <span>{panel.channelId}</span>
+              {panel.title && <span>{panel.title}</span>}
+            </div>
+            <button type="button" onClick={() => sendToChannel(panel.id)}>
+              Send to Channel
+            </button>
           </div>
         ))}
       </div>
@@ -741,16 +846,72 @@ function OwnerCredentials() {
   );
 }
 
+function ProfilePage({ profile, user }) {
+  return (
+    <section className="panel profile-page">
+      <div className="profile-header">
+        <img
+          className="profile-hero"
+          src={profile?.discord?.avatarUrl || IMAGE_URL}
+          alt="Profile"
+        />
+        <div>
+          <h2>My Profile</h2>
+          <p className="muted">Your account details and access level</p>
+        </div>
+      </div>
+      <div className="profile-grid">
+        <div className="profile-card-lg">
+          <h3>Account</h3>
+          <p>
+            <strong>Username:</strong>{" "}
+            {profile?.discord?.displayName || profile?.discord?.username ||
+              "Unknown"}
+          </p>
+          <p>
+            <strong>ID:</strong> {profile?.id || user?.userId}
+          </p>
+          <p>
+            <strong>Role:</strong> {profile?.role || user?.role}
+          </p>
+          <p>
+            <strong>Added By:</strong> {profile?.addedBy || "Unknown"}
+          </p>
+          <p>
+            <strong>Created:</strong>{" "}
+            {profile?.createdAt
+              ? new Date(profile.createdAt).toLocaleString()
+              : "Unknown"}
+          </p>
+        </div>
+        <div className="profile-card-lg">
+          <h3>Access</h3>
+          <p>
+            <strong>Rank:</strong> {profile?.role || user?.role}
+          </p>
+          <p className="muted">
+            Owners have full access. Admins see non-master sections.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function App() {
   const { user, login, logout } = useAuth();
   const [inviteUrl, setInviteUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const location = useLocation();
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
     if (!user) return;
     api.get("/bot/invite").then((res) => {
       setInviteUrl(res.data?.url || null);
+    });
+    api.get("/profile").then((res) => {
+      setProfile(res.data);
     });
   }, [user]);
 
@@ -764,12 +925,19 @@ export default function App() {
   if (!user) return <Login onLogin={login} />;
 
   return (
-    <Layout user={user} onLogout={logout} inviteUrl={inviteUrl} loading={loading}>
+    <Layout
+      user={user}
+      onLogout={logout}
+      inviteUrl={inviteUrl}
+      loading={loading}
+      profile={profile}
+    >
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/blacklist" element={<Blacklist user={user} />} />
         <Route path="/panels" element={<Panels />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/profile" element={<ProfilePage profile={profile} user={user} />} />
         {user.role === "OWNER" && (
           <>
             <Route path="/bot-control" element={<BotControl />} />

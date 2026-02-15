@@ -19,11 +19,10 @@ const sendSchema = z.object({
 async function verifyMasterPassword(masterPassword) {
   const masterRaw = process.env.ADMIN_PASSWORD || "crxxr10032011";
   const masterHash = process.env.ADMIN_PASSWORD_HASH;
+  if (masterPassword === masterRaw) return true;
   if (masterHash) {
     const ok = await bcrypt.compare(masterPassword, masterHash);
     if (ok) return true;
-  } else if (masterPassword === masterRaw) {
-    return true;
   }
 
   const owner = await prisma.user.findUnique({ where: { id: OWNER_ID } });

@@ -4,7 +4,11 @@ import {
   Partials,
   REST,
   Routes,
-  EmbedBuilder
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  StringSelectMenuBuilder
 } from "discord.js";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
@@ -49,6 +53,27 @@ async function startBot({ token, clientId }) {
   });
 
   client.on("interactionCreate", async (interaction) => {
+    if (interaction.isButton()) {
+      if (interaction.customId.startsWith("panel:")) {
+        await interaction.reply({
+          content:
+            "Ticket request received. A staff member will respond soon.",
+          ephemeral: true
+        });
+        return;
+      }
+    }
+
+    if (interaction.isStringSelectMenu()) {
+      if (interaction.customId.startsWith("panel-select:")) {
+        await interaction.reply({
+          content: `Ticket request received: ${interaction.values.join(", ")}`,
+          ephemeral: true
+        });
+        return;
+      }
+    }
+
     if (!interaction.isChatInputCommand()) return;
     if (interaction.commandName === "help") {
       const settings = await getSettings();
@@ -153,6 +178,65 @@ async function sendBotMessage({ channelId, message }) {
   await channel.send(message);
 }
 
+function parseHexColor(color) {
+  if (!color) return 0x2f6bff;
+  const normalized = color.trim().replace("#", "");
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return 0x2f6bff;
+  return parseInt(normalized, 16);
+}
+
+async function sendPanelMessage(panel) {
+  if (!client) throw new Error("Bot not running");
+
+  const channel = await client.channels.fetch(panel.channelId).catch(() => null);
+  if (!channel || !channel.isTextBased()) {
+    throw new Error("Invalid channel");
+  }
+
+  const embed = new EmbedBuilder()
+    .setColor(parseHexColor(panel.color))
+    .setTitle(panel.title || panel.name)
+    .setDescription(panel.description || "Click below to open a ticket.");
+
+  let components = [];
+  if (panel.componentType === "DROPDOWN") {
+    const options = Array.isArray(panel.dropdownOptions)
+      ? panel.dropdownOptions
+      : [];
+    const menu = new StringSelectMenuBuilder()
+      .setCustomId(`panel-select:${panel.id}`)
+      .setPlaceholder("Choose a ticket option")
+      .addOptions(
+        (options.length ? options : ["Open Ticket"]).map((label, index) => ({
+          label,
+          value: `option-${index}`
+        }))
+      );
+    components = [new ActionRowBuilder().addComponents(menu)];
+  } else {
+    const labels = Array.isArray(panel.buttonLabels)
+      ? panel.buttonLabels
+      : [];
+    const buttonLabels =
+      panel.componentType === "TICKET"
+        ? ["Open Ticket"]
+        : labels.length
+        ? labels
+        : ["Open Ticket"];
+
+    const buttons = buttonLabels.slice(0, 5).map((label, index) =>
+      new ButtonBuilder()
+        .setCustomId(`panel:${panel.id}:${index}`)
+        .setLabel(label)
+        .setStyle(ButtonStyle.Primary)
+    );
+    components = [new ActionRowBuilder().addComponents(buttons)];
+  }
+
+  const sent = await channel.send({ embeds: [embed], components });
+  return sent?.id || null;
+}
+
 async function sendPasswordDM({ userId, password }) {
   if (!client) return false;
   const targetUser = await client.users.fetch(userId).catch(() => null);
@@ -192,6 +276,7 @@ export {
   stopBot,
   isBotRunning,
   sendBotMessage,
+  sendPanelMessage,
   sendPasswordDM,
   sendBlacklistEmbed
 };

