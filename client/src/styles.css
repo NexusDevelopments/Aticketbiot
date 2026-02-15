@@ -248,6 +248,12 @@ button:hover {
   width: 40px;
   height: 40px;
   border-radius: 12px;
+  object-fit: cover;
+}
+
+.profile-card img {
+  max-width: 40px;
+  max-height: 40px;
 }
 
 .profile-page {
