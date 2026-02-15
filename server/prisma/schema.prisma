@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+}
+
+model User {
+  id        String   @id
+  role      Role
+  passwordHash String?
+  lastPassword String?
+  addedBy   String?
+  createdAt DateTime @default(now())
+}
+
+model LoginAttempt {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  failCount   Int      @default(0)
+  lockedUntil DateTime?
+  updatedAt   DateTime @updatedAt
+}
+
+model Setting {
+  id                     String   @id @default("singleton")
+  guildId                String?
+  websiteUrl             String?
+  blacklistChannelId     String?
+  ticketLogChannelId     String?
+  panelChannelId         String?
+  imageUrl               String?
+  botToken               String?
+  botClientId            String?
+  updatedAt              DateTime @updatedAt
+}
+
+model BlacklistEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  reason      String
+  duration    String
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  createdBy   String
+}
+
+model TicketPanel {
+  id          String   @id @default(cuid())
+  name        String
+  channelId   String
+  messageId   String?
+  createdAt   DateTime @default(now())
+}
+
+model TicketLog {
+  id          String   @id @default(cuid())
+  ticketId    String
+  userId      String
+  transcript  String
+  createdAt   DateTime @default(now())
+}
